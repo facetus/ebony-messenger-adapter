@@ -26,7 +26,7 @@ const fbApiVersion = "v2.11"
 /**
  * Creates a sender function
  */
-export function senderFactory(pageToken: string) {
+export function senderFactory(pageToken: string, sendAPI: (body: SendAPIBody, ...params: any[]) => Promise<any> = sendAPIRequest) {
 
     const qs = `access_token=${encodeURIComponent(pageToken)}`;
 
@@ -85,7 +85,7 @@ export function senderFactory(pageToken: string) {
     };
 }
 
-async function sendAPI(body: SendAPIBody, qs: string) {
+async function sendAPIRequest(body: SendAPIBody, qs: string) {
     try {
         const rsp = await fetch(`${fbApiUrl}/me/messages?${qs}`, {
             body: JSON.stringify(body),

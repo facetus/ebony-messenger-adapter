@@ -6,6 +6,7 @@ import webhook from './webhook';
 import { senderFactory } from './sender';
 import messagingWebhook from '../webhooks/messaging';
 import MessengerUser from './MessengerUser';
+import { SendAPIBody, UserDataFields } from './interfaces/messengerAPI';
 
 export interface MessengerWebhookOptions<T extends MessengerUser> {
     webhookKey?: string;
@@ -22,17 +23,31 @@ export default class MessengerAdapter<T extends MessengerUser> extends GenericAd
     private pageToken: string;
     private route: string;
     private pageId: string;
+    
+    public sender: (...params: any[]) => Promise<void>;
+    public startsTyping: (id: string) => Promise<void>;
+    public stopsTyping: (id: string) => Promise<void>;
+    public markSeen: (id: string) => Promise<void>;
+    public getUserData: (id: string, fields: UserDataFields[]) => Promise<void>;
+    public handover: (id: string) => Promise<void>;
 
-    constructor(options: MessengerWebhookOptions<T>) {
+    constructor(options: MessengerWebhookOptions<T>, sendFunction?: (body: SendAPIBody, ...params: any[]) => Promise<any>) {
         const { route = '/fb', webhookKey = 'ebony123', pageId, pageToken, appSecret, userModel = MessengerUser } = options;
 
         super('messenger', userModel);
-
         this.webhookKey = webhookKey;
         this.appSecret = appSecret;
         this.pageToken = pageToken;
         this.pageId = pageId;
         this.route = route;
+        const { send, senderAction, getUserData, handover } = senderFactory(pageToken, sendFunction);
+
+        this.sender = send;
+        this.startsTyping = (id: string) => senderAction(id, "typing_on");
+        this.stopsTyping = (id: string) => senderAction(id, "typing_on");
+        this.markSeen = (id: string) => senderAction(id, "mark_seen");
+        this.getUserData = getUserData;
+        this.handover = handover;
     }
 
     initWebhook() {
@@ -55,48 +70,6 @@ export default class MessengerAdapter<T extends MessengerUser> extends GenericAd
             console.error("Failed validation. Make sure the validation tokens match.");
             return res.sendStatus(400);
         }
-    }
-
-    get sender() {
-        const pageToken = this.pageToken;
-        const { send } = senderFactory(pageToken);
-
-        return send;
-    }
-
-    get startsTyping() {
-        const pageToken = this.pageToken;
-        const { senderAction } = senderFactory(pageToken);
-
-        return (id: string) => senderAction(id, "typing_on");
-    }
-
-    get stopsTyping() {
-        const pageToken = this.pageToken;
-        const { senderAction } = senderFactory(pageToken);
-
-        return (id: string) => senderAction(id, "typing_on");
-    }
-
-    get markSeen() {
-        const pageToken = this.pageToken;
-        const { senderAction } = senderFactory(pageToken);
-
-        return (id: string) => senderAction(id, "mark_seen");
-    }
-
-    get getUserData() {
-        const pageToken = this.pageToken;
-        const { getUserData } = senderFactory(pageToken);
-
-        return getUserData;
-    }
-
-    get handover() {
-        const pageToken = this.pageToken;
-        const { handover } = senderFactory(pageToken);
-
-        return handover;
     }
 
     public userLoader(): (id: string) => Promise<T> {
